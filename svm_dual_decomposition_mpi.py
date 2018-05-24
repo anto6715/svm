@@ -46,8 +46,8 @@ comm.Barrier()
 # distribuzione dataset ad ogni agente
 u = 0
 for i in range(rank * n_constraints, rank * n_constraints + n_constraints):
-    X[u] = np.loadtxt("dataset completo", usecols=(0, 1))[i]
-    Y[u] = np.loadtxt("dataset completo", usecols=2)[i]
+    X[u] = np.loadtxt("dataset", usecols=(0, 1))[i]
+    Y[u] = np.loadtxt("dataset", usecols=2)[i]
     A[u] = Y[u]*np.array([X[u][0],X[u][1], 1])
     u = u + 1
 
@@ -64,7 +64,7 @@ for j in range(0, size):
         Set_ni.append(j)
 
 l = np.zeros(shape=(iteration, 1, n))
-H = np.matrix('1, 0, 0;0, 1, 0; 0 ,0 ,0.02')
+H = np.matrix('1, 0, 0;0, 1, 0; 0 ,0 ,1')
 lambd = np.zeros(shape=(iteration + 1, 2 * len(Set_ni), n))
 x = np.zeros(shape=(iteration, len(Set_ni) + 1, n))
 prova = np.zeros(shape=(iteration, 1))
@@ -72,17 +72,17 @@ prova = np.zeros(shape=(iteration, 1))
 comm.Barrier()
 
 for t in range(0, iteration):
-    # costruisco lambda_i sommando le lamnda_ij e sottraendo lambda_ji
-    for k in range(0, len(Set_ni)):
-        l[t][0][:] = l[t][0][:] + lambd[t][k][:]
     # sottraggo lambda ji
-    for k in range(len(Set_ni), 2 * len(Set_ni)):
+    for k in range(0, len(Set_ni)):
         l[t][0][:] = l[t][0][:] - lambd[t][k][:]
+    # sommo lambda ij
+    for k in range(len(Set_ni), 2 * len(Set_ni)):
+        l[t][0][:] = l[t][0][:] + lambd[t][k][:]
 
     # minimizzazione attraverso cvx
     w = Variable(n)
     obj = Minimize(0.5 * (quad_form(w, H)) + (l[t][0][:]) * w)
-    constraints = [A * w >= 1, w < 5, w > -5]  # va inserito vincolo Ax<b
+    constraints = [A * w >= 1]#, w < 5, w > -5]  # va inserito vincolo Ax<b
     prob = Problem(obj, constraints)
     prob.solve()
 
@@ -104,15 +104,21 @@ for t in range(0, iteration):
     j = 1
     h = 0
     for k in range(0, len(Set_ni)):
-        lambd[t + 1][h][:] = lambd[t][h][:] + alpha * (x[t][0][:] - x[t][j][:])
-        h = h + 1
-        j = j + 1
-
-    j = 1
-    for k in range(0, len(Set_ni)):
         lambd[t + 1][h][:] = lambd[t][h][:] + alpha * (x[t][j][:] - x[t][0][:])
         h = h + 1
         j = j + 1
+
+
+    # invio lamnbda ji all'agente j
+    i=0
+    for s in Set_ni:
+        send = comm.isend(lambd[t + 1][i][:], dest=s, tag=0)
+        send.wait()
+        req = comm.irecv(source=s, tag=0)
+        lambd[t + 1][h][:] = req.wait()
+        h = h + 1
+        i = i + 1
+
 
 print("agente:", rank, "X:", x[t][0][:])
 
