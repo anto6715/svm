@@ -1,0 +1,12 @@
+Metadata-Version: 1.1
+Name: cvx
+Version: 0.1.3
+Summary: OpenCV 'extension' with routinely used methods
+Home-page: https://github.com/erikperillo/cvx
+Author: Erik Perillo
+Author-email: erik.perillo@gmail.com
+License: GPL3
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
