@@ -14,7 +14,6 @@ size = comm.Get_size()
 iteration = int(sys.argv[2])
 n = 3                                       #dimensionalità
 N = size                                    #numero agenti
-alpha = float(sys.argv[3])                  #stepsize
 theory=2.9454744645378845                   #valore teorico
 n_dataset = int(sys.argv[1])                #numero totale vincoli
 n_constraints = int(n_dataset / size)       #numero di vincoli per agente
@@ -23,6 +22,7 @@ H2 = np.matrix('1, 0, 0;0, 1, 0; 0 ,0 ,0')  #matrice per il calcolo della funzio
 
 
 #agente 0 crea grafo
+"""
 if rank == 0:
     while (1):
         # Creo la matrice di adiacenza simmetrica e senza elf edges
@@ -47,7 +47,7 @@ if rank == 0:
 comm.Barrier()
 
 
-
+"""
 
 
 # Costrusico vettore degli In-neighbor attraverso matrice di adiacenza
@@ -71,7 +71,7 @@ Y = np.zeros(shape=(n_constraints, 1))
 A = np.zeros(shape=(n_constraints, 3))
 x_best= np.zeros(shape=(iteration,3))
 f_best= np.zeros(shape=(iteration,1))
-
+h=0
 for z in Set_ni:
     lambd[0][h][:] = np.loadtxt("lambda")[z][rank]
     h = h + 1
@@ -86,7 +86,7 @@ for i in range(rank * n_constraints, rank * n_constraints + n_constraints):
 comm.Barrier()
 temp=0
 for t in range(0, iteration):
-    alpha= 5.68*(1/(t+1))
+    alpha= 1.168*((0.1/(t+1)**(1/2)))
     # sottraggo lambda ji
     for k in range(0, len(Set_ni)):
         l[t][0][:] = l[t][0][:] - lambd[t][k][:]
@@ -146,31 +146,39 @@ for t in range(0, iteration):
             x_best[t] = x_best[t] + req.wait()      #calcolo x medio tra tutti gli agenti
         x_best[t] = x_best[t]/size
         f_best[t]=(1/2)*(np.dot(x_best[t]*H2,x_best[t]))
-        #temp= theory -f_best[t]
-        #if temp!=0:
-            #error[t] = math.log(temp)     #calcolo errore tra valore terorico e valore della funzione
-    #alpha = alpha - 0.00001
+        temp= theory -f_best[t]
+        if temp!=0:
+            if temp<0:
+                error[t] = math.log(-temp)     #calcolo errore tra valore terorico e valore della funzione
+            else:
+                error[t] = math.log(temp)
+                #alpha = alpha - 0.00001
 print("agente:", rank, "X:", x[t][0][:])
 
 
 #agente 0 esegue plot dell'errore e dell'iperpiano
-if rank == 3:
+if rank == 0:
     print(x_best[t])
     plt.figure(1)
-    plt.subplot(211)
-    #plt.xscale('log')
-    #plt.yscale('log')
-    plt.plot(prova)
+    plt.subplot(311).set_title("error function")
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.plot(error)
+
+
+    plt.subplot(312).set_title("function value")
+    plt.axhline(y=theory, color='r', linestyle='-', label="theory value")
+    plt.plot(f_best,label="function value")
+    plt.legend(bbox_to_anchor=(0.8, 1), loc=0, borderaxespad=0.)
     r = x[t][0][:]
     b = r[2]
     a1 = -2
     a2 = 5
     c1 = (-b - (r[0] * a1)) / r[1]
     c2 = (-b - (r[0] * a2)) / r[1]
-    plt.subplot(212)
+    plt.subplot(313).set_title("hyperplane of svm")
     plt.plot([a1, a2], [c1, c2], 'ro-')
 
-    N = 50
     x1 = np.loadtxt("1", usecols=0)
     y1 = np.loadtxt("1", usecols=1)
     plt.scatter(x1, y1, s=10, c='blue', alpha=0.5)

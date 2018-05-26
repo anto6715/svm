@@ -7,7 +7,7 @@ def generateSPD(dim):
     A=A+dim*np.eye(dim)
     return A
 
-N=10
+N=20
 n=3
 A = np.zeros(shape=(N,n,n))
 B = np.zeros(shape=(N,1,n))

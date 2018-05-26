@@ -26,6 +26,7 @@ if rank==0:
 
 x_best= np.zeros(shape=(iteration,3))
 f_best= np.zeros(shape=(iteration,1))
+"""
 if rank == 0:
     while (1):
         # Creo la matrice di adiacenza simmetrica e senza elf edges
@@ -49,7 +50,7 @@ if rank == 0:
     # print(Adj)
 
     np.savetxt("adj_matrix", Adj)
-
+"""
 comm.Barrier()
 
 
@@ -86,6 +87,7 @@ for z in Set_ni:
     h = h + 1
 comm.Barrier()
 
+
 for t in range(0, iteration):
     # sottraggo lambda ji
     for k in range(0, len(Set_ni)):
@@ -100,7 +102,7 @@ for t in range(0, iteration):
     prob = Problem(obj)
     prob.solve()
 
-    x[t][0][:] = 0.5*np.transpose(w.value)
+    x[t][0][:] = np.transpose(w.value)
 
     # invio e ricezione stato con gli agenti vicini
     j = 1;
@@ -140,20 +142,21 @@ for t in range(0, iteration):
             req = comm.irecv(source=i, tag=0)
             x_best[t] = x_best[t] + req.wait()
         x_best[t] = x_best[t]/size
-        f_best[t]=(1/2)*(np.dot(x_best[t],A_tot).dot(x_best[t])+ B_tot.dot(x_best[t]))
+        f_best[t]=(1/2)*(np.dot(x_best[t],A_tot).dot(x_best[t]))+ B_tot.dot(x_best[t])
 
 
 print("agente:", rank, "X:", x[t][0][:])
 
 if rank == 0:
-    for t in range(0, iteration):
-        for i in range(0, size):
-            B = np.load("B_matrices.npy")[i]
-            A = np.load("A_matrices.npy")[i]
-            fval[t][i] = np.dot(x_best[t], A).dot(x_best[t]) + B.dot(x_best[t])
-            f_best[t] = f_best[t] + fval[t][i]
-    x_best = - np.linalg.inv((A_tot)).dot((np.transpose(B_tot)))
-    #fbest = (x_best* A_tot).dot(x_best) + B_tot.dot(x_best)
-    print("valore teorico:", x_best/2)
-    plt.plot(f_best)
+    print(x_opt)
+    #print(f_best[t])
+    fbest=0.5*np.dot(x_opt.T,A_tot).dot(x_opt)+B_tot.dot(x_opt)
+    plt.axhline(y=fbest, color='r', linestyle='-', label="theory value")
+    #print("f:",fbest)
+    #print("valore teorico:", x_opt)
+    plt.xlabel("iteration")
+    plt.ylabel("function value")
+    plt.title("alpha = 0.00168")
+    plt.plot(f_best,label="function value")
+    plt.legend(bbox_to_anchor=(0.8, 1), loc=2, borderaxespad=0.)
     plt.show()
