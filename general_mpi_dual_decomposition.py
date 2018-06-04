@@ -4,6 +4,7 @@ from cvxpy import *
 import matplotlib.pyplot as plt
 import networkx as nx;
 import sys
+import math
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -23,7 +24,8 @@ if rank==0:
         A_tot= A_tot+ np.load("A_matrices.npy")[i]
         B_tot = B_tot + np.load("B_matrices.npy")[i]
     x_opt = -np.matmul(np.linalg.inv((A_tot)),(B_tot).T)
-
+    theory = 0.5 * np.dot(x_opt.T, A_tot).dot(x_opt) + B_tot.dot(x_opt)
+    print(theory)
 x_best= np.zeros(shape=(iteration,3))
 f_best= np.zeros(shape=(iteration,1))
 """
@@ -80,12 +82,19 @@ lambd = np.zeros(shape=(iteration + 1, 2 * len(Set_ni), n))
 x = np.zeros(shape=(iteration, len(Set_ni) + 1, n))
 prova = np.zeros(shape=(iteration, 1))
 
-
 h=0
 for z in Set_ni:
     lambd[0][h][:] = np.loadtxt("lambda")[z][rank]
     h = h + 1
 comm.Barrier()
+
+
+if rank == 0:
+    error = np.zeros(shape=(iteration, 1))
+    error_media = np.zeros(shape=(iteration, 1))
+    x_media = np.zeros(shape=(iteration, 3))
+    temp2=0
+    f_media = np.zeros(shape=(iteration, 1))
 
 
 for t in range(0, iteration):
@@ -144,19 +153,53 @@ for t in range(0, iteration):
         x_best[t] = x_best[t]/size
         f_best[t]=(1/2)*(np.dot(x_best[t],A_tot).dot(x_best[t]))+ B_tot.dot(x_best[t])
 
+        temp2 = temp2 + x_best[t]
+        x_media[t] = temp2 / (t + 1)
+        f_media[t] = (1/2)*(np.dot(x_media[t],A_tot).dot(x_media[t]))+ B_tot.dot(x_media[t])
+
+        temp = theory - f_best[t]
+        if temp != 0:
+            if temp < 0:
+                error[t] = math.log(-temp)  # calcolo errore tra valore terorico e valore della funzione
+            else:
+                error[t] = math.log(temp)
+
+        temp = theory - f_media[t]
+        if temp != 0:
+            if temp < 0:
+                error_media[t] = math.log(-temp)  # calcolo errore tra valore terorico e valore della funzione
+            else:
+                error_media[t] = math.log(temp)
+
 
 print("agente:", rank, "X:", x[t][0][:])
 
 if rank == 0:
     print(x_opt)
     #print(f_best[t])
-    fbest=0.5*np.dot(x_opt.T,A_tot).dot(x_opt)+B_tot.dot(x_opt)
-    plt.axhline(y=fbest, color='r', linestyle='-', label="theory value")
+    print(error)
+    """plt.axhline(y=theory, color='r', linestyle='-', label="theory value")
     #print("f:",fbest)
     #print("valore teorico:", x_opt)
     plt.xlabel("iteration")
     plt.ylabel("function value")
     plt.title("alpha = 0.00168")
     plt.plot(f_best,label="function value")
+    plt.legend(bbox_to_anchor=(0.8, 1), loc=2, borderaxespad=0.)
+    plt.show()
+"""
+
+    plt.figure(1)
+    plt.subplot(211).set_title("error function")
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.plot(error, label="error function")
+    plt.plot(error_media, label="error average function")
+    plt.legend(bbox_to_anchor=(0.8, 1), loc=0, borderaxespad=0.)
+
+    plt.subplot(212).set_title("function value")
+    plt.axhline(y=theory, color='r', linestyle='-', label="theory value")
+    plt.plot(f_best, label="function value")
+    plt.plot(f_media, label="average function value")
     plt.legend(bbox_to_anchor=(0.8, 1), loc=2, borderaxespad=0.)
     plt.show()

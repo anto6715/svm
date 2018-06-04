@@ -3,7 +3,4 @@ import scipy
 
 import sys
 
-fun = lambda x: x[0]
-print(callable(fun))
-res =  minimize(fun, (0,0))
-print(res.x)
+print(float(abs(-10)-abs(-3)))

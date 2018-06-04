@@ -18,7 +18,7 @@ alpha = float(sys.argv[3])  # stepsize
 theory = 2.9454744645378845  # valore teorico
 n_dataset = int(sys.argv[1])  # numero totale vincoli
 n_constraints = int(n_dataset / size)  # numero di vincoli per agente
-H = np.matrix('1, 0, 0;0, 1, 0; 0 ,0 ,0.001')  # matrice H della quadratica
+H = np.matrix('1, 0, 0;0, 1, 0; 0 ,0 ,1')  # matrice H della quadratica
 H2 = np.matrix('1, 0, 0;0, 1, 0; 0 ,0 ,0')  # matrice per il calcolo della funzioen totale
 
 # agente 0 crea grafo
@@ -60,6 +60,7 @@ lambd = np.zeros(shape=(iteration + 1, 2 * len(Set_ni), n))
 x = np.zeros(shape=(iteration, len(Set_ni) + 1, n))
 prova = np.zeros(shape=(iteration, 1))
 error = np.zeros(shape=(iteration, 1))
+error_media = np.zeros(shape=(iteration, 1))
 X = np.zeros(shape=(n_constraints, 2))
 Y = np.zeros(shape=(n_constraints, 1))
 A = np.zeros(shape=(n_constraints, 3))
@@ -77,6 +78,11 @@ for i in range(rank * n_constraints, rank * n_constraints + n_constraints):
     Y[u] = np.loadtxt("dataset", usecols=2)[i]
     A[u] = Y[u] * np.array([X[u][0], X[u][1], 1])
     u = u + 1
+
+if rank == 0:
+    x_media = np.zeros(shape=(iteration, 3))
+    temp2=0
+    f_media = np.zeros(shape=(iteration, 1))
 
 comm.Barrier()
 
@@ -139,8 +145,25 @@ for t in range(0, iteration):
             x_best[t] = x_best[t] + req.wait()  # calcolo x medio tra tutti gli agenti
         x_best[t] = x_best[t] / size
         f_best[t] = (1 / 2) * (np.dot(x_best[t] * H2, x_best[t]))
-        error[t] = math.log(theory - f_best[t])  # calcolo errore tra valore terorico e valore della funzione
 
+
+        temp2 = temp2 + x_best[t]
+        x_media[t] = temp2/(t+1)
+        f_media[t] = (1 / 2) * (np.dot(x_media[t] * H2, x_media[t]))
+
+        temp = theory - f_best[t]
+        if temp != 0:
+            if temp < 0:
+                error[t] = math.log(-temp)  # calcolo errore tra valore terorico e valore della funzione
+            else:
+                error[t] = math.log(temp)
+
+        temp = theory - f_media[t]
+        if temp != 0:
+            if temp < 0:
+                error_media[t] = math.log(-temp)  # calcolo errore tra valore terorico e valore della funzione
+            else:
+                error_media[t] = math.log(temp)
 print("agente:", rank, "X:", x[t][0][:])
 
 # agente 0 esegue plot dell'errore e dell'iperpiano
@@ -150,11 +173,14 @@ if rank == 0:
     plt.subplot(311).set_title("error function")
     plt.xscale('log')
     plt.yscale('log')
-    plt.plot(error)
+    plt.plot(error, label="error function")
+    plt.plot(error_media, label="error average function")
+    plt.legend(bbox_to_anchor=(0.8, 1), loc=0, borderaxespad=0.)
 
     plt.subplot(312).set_title("function value")
     plt.axhline(y=theory, color='r', linestyle='-', label="theory value")
     plt.plot(f_best, label="function value")
+    plt.plot(f_media, label="average time function value")
     plt.legend(bbox_to_anchor=(0.8, 1), loc=2, borderaxespad=0.)
 
     r = x[t][0][:]

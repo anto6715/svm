@@ -65,7 +65,7 @@ l = np.zeros(shape=(iteration, 1, n))
 lambd = np.zeros(shape=(iteration + 1, 2 * len(Set_ni), n))
 x = np.zeros(shape=(iteration, len(Set_ni) + 1, n))
 prova = np.zeros(shape=(iteration, 1))
-error = np.zeros(shape=(iteration, 1))
+
 X = np.zeros(shape=(n_constraints, 2))
 Y = np.zeros(shape=(n_constraints, 1))
 A = np.zeros(shape=(n_constraints, 3))
@@ -82,6 +82,13 @@ for i in range(rank * n_constraints, rank * n_constraints + n_constraints):
     Y[u] = np.loadtxt("dataset", usecols=2)[i]
     A[u] = Y[u] * np.array([X[u][0], X[u][1], 1])
     u = u + 1
+
+if rank == 0:
+    error = np.zeros(shape=(iteration, 1))
+    error_media = np.zeros(shape=(iteration, 1))
+    x_media = np.zeros(shape=(iteration, 3))
+    temp2=0
+    f_media = np.zeros(shape=(iteration, 1))
 
 comm.Barrier()
 temp=0
@@ -146,13 +153,30 @@ for t in range(0, iteration):
             x_best[t] = x_best[t] + req.wait()      #calcolo x medio tra tutti gli agenti
         x_best[t] = x_best[t]/size
         f_best[t]=(1/2)*(np.dot(x_best[t]*H2,x_best[t]))
+
+
+        #calcolo valore funzione attraverso la media degli stati fino all'istante t
+        temp2 = temp2 + x_best[t]
+        x_media[t] = temp2 / (t + 1)
+        f_media[t] = (1 / 2) * (np.dot(x_media[t] * H2, x_media[t]))
+
+
         temp= theory -f_best[t]
         if temp!=0:
             if temp<0:
                 error[t] = math.log(-temp)     #calcolo errore tra valore terorico e valore della funzione
             else:
                 error[t] = math.log(temp)
-                #alpha = alpha - 0.00001
+
+        temp = theory - f_media[t]
+        if temp != 0:
+            if temp < 0:
+                error_media[t] = math.log(-temp)  # calcolo errore tra valore terorico e valore della funzione
+            else:
+                error_media[t] = math.log(temp)
+
+
+
 print("agente:", rank, "X:", x[t][0][:])
 
 
@@ -163,12 +187,14 @@ if rank == 0:
     plt.subplot(311).set_title("error function")
     plt.xscale('log')
     plt.yscale('log')
-    plt.plot(error)
-
+    plt.plot(error, label="error function")
+    plt.plot(error_media, label="error average function")
+    plt.legend(bbox_to_anchor=(0.8, 1), loc=0, borderaxespad=0.)
 
     plt.subplot(312).set_title("function value")
     plt.axhline(y=theory, color='r', linestyle='-', label="theory value")
     plt.plot(f_best,label="function value")
+    plt.plot(f_media, label="average time function value")
     plt.legend(bbox_to_anchor=(0.8, 1), loc=0, borderaxespad=0.)
     r = x[t][0][:]
     b = r[2]
