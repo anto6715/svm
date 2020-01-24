@@ -11,9 +11,9 @@ For building and running the application you need:
 - [MPI4py](https://mpi4py.readthedocs.io/en/stable/)
 
 ## Run
-```mpirun -np number_agents python svm_dual_decomposition_mpi.py number_dataset iteration alpha
 ```
 mpirun -np number_agents python svm_dual_decomposition_mpi.py number_dataset iteration alpha
+```
 
 ## Description:
 We study a distributed multi-agent optimization problem of minimizing the
